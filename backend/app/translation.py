@@ -53,6 +53,15 @@ class TranslationService:
         for attempt in range(3):
             try:
                 return await self._call_batch_api(batch)
+            except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+                if attempt == 2:
+                    logger.error(f"Translation response invalid after 3 attempts: {e}")
+                    return self._mark_pending(batch)
+                backoff = [1, 3, 5][attempt]
+                logger.warning(
+                    f"Translation attempt {attempt+1} invalid response, retrying in {backoff}s: {e}"
+                )
+                await asyncio.sleep(backoff)
             except Exception as e:
                 if attempt == 2:
                     logger.error(f"Translation failed after 3 attempts: {e}")
@@ -63,6 +72,22 @@ class TranslationService:
                 )
                 await asyncio.sleep(backoff)
         return self._mark_pending(batch)
+
+    def _validate_batch_response(self, parsed: dict, batch_size: int) -> list[dict]:
+        """Validate parsed translation response. Raises on invalid structure."""
+        translations = parsed.get("translations")
+        if not isinstance(translations, list):
+            raise TypeError(f"'translations' must be a list, got {type(translations).__name__}")
+        if len(translations) != batch_size:
+            raise ValueError(
+                f"Expected {batch_size} translations, got {len(translations)}"
+            )
+        for i, t in enumerate(translations):
+            if not isinstance(t, dict):
+                raise TypeError(f"Translation {i} must be a dict, got {type(t).__name__}")
+            if "title" not in t:
+                raise KeyError(f"Translation {i} missing 'title' field")
+        return translations
 
     async def _call_batch_api(self, batch: list[dict]) -> list[dict]:
         """Single batch API call."""
@@ -79,7 +104,7 @@ class TranslationService:
         )
         content = response.choices[0].message.content
         parsed = json.loads(content)
-        translations = parsed.get("translations", [])
+        translations = self._validate_batch_response(parsed, len(batch))
 
         # Map translations back to items by index
         results = []
@@ -110,25 +135,55 @@ class TranslationService:
         return "\n".join(lines)
 
     async def _translate_single(self, item: dict) -> dict:
-        """Fallback: translate single item."""
-        user_content = (
-            f"Title: {item['original_title']}\nBody: {item.get('original_body', '')}"
-        )
-        response = self.client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": SINGLE_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.3,
-            max_tokens=2048,
-            response_format={"type": "json_object"},
-        )
-        content = response.choices[0].message.content
-        parsed = json.loads(content)
-        item["translated_title"] = parsed.get("title", item["original_title"])
-        item["translated_body"] = parsed.get("body", item.get("original_body", ""))
-        item["translated_at"] = datetime.now(timezone.utc).isoformat()
+        """Fallback: translate single item with validation."""
+        for attempt in range(3):
+            try:
+                user_content = (
+                    f"Title: {item['original_title']}\nBody: {item.get('original_body', '')}"
+                )
+                response = self.client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=[
+                        {"role": "system", "content": SINGLE_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=0.3,
+                    max_tokens=2048,
+                    response_format={"type": "json_object"},
+                )
+                content = response.choices[0].message.content
+                parsed = json.loads(content)
+                if not isinstance(parsed, dict) or "title" not in parsed:
+                    raise ValueError("Single translation response missing 'title'")
+                item["translated_title"] = parsed.get("title", item["original_title"])
+                item["translated_body"] = parsed.get("body", item.get("original_body", ""))
+                item["translated_at"] = datetime.now(timezone.utc).isoformat()
+                return item
+            except (json.JSONDecodeError, KeyError, ValueError, TypeError, IndexError) as e:
+                if attempt == 2:
+                    logger.error(f"Single translation failed after 3 attempts: {e}")
+                    return self._mark_fallback_single(item)
+                backoff = [1, 3, 5][attempt]
+                logger.warning(
+                    f"Single translation attempt {attempt+1} failed, retrying in {backoff}s: {e}"
+                )
+                await asyncio.sleep(backoff)
+            except Exception as e:
+                if attempt == 2:
+                    logger.error(f"Single translation failed after 3 attempts: {e}")
+                    return self._mark_fallback_single(item)
+                backoff = [1, 3, 5][attempt]
+                logger.warning(
+                    f"Single translation attempt {attempt+1} failed, retrying in {backoff}s: {e}"
+                )
+                await asyncio.sleep(backoff)
+        return self._mark_fallback_single(item)
+
+    def _mark_fallback_single(self, item: dict) -> dict:
+        """Mark a single item as translation pending."""
+        item["translated_title"] = f"[TRANSLATION_PENDING] {item['original_title']}"
+        item["translated_body"] = item.get("original_body", "")
+        item["translated_at"] = None
         return item
 
     def _mark_pending(self, batch: list[dict]) -> list[dict]:

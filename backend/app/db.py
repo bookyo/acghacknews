@@ -1,5 +1,6 @@
 import sqlite3
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 import aiosqlite
@@ -14,6 +15,8 @@ def _connect(db_path: str) -> aiosqlite.Connection:
 
 async def init_db(db_path: str) -> None:
     """Create database tables and indexes if they do not already exist."""
+    if not db_path.startswith(("file:", ":memory:")):
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     async with _connect(db_path) as db:
         await db.execute("PRAGMA journal_mode=WAL")
 

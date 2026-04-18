@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_FEED_URLS = [
     "https://animeanime.jp/rss/index.rdf",
-    "https://mantan-web.jp/rss/index.rdf",
+    "https://www.animate.co.jp/feed/",
 ]
 
 

@@ -30,22 +30,14 @@ export function FeedList({ sources, sort }: FeedListProps) {
       }
 
       try {
-        // Fetch all items with source filter if specific sources are selected
-        // The API only supports single source at a time, so we fetch without source
-        // and filter client-side, or fetch the first selected source.
-        // For simplicity, fetch without source filter (all sources) and filter client-side.
         const response = await getFeed({
           page: pageNum,
           sort,
+          sources: sources.join(","),
         })
 
-        let filtered = response.items
-        if (sources.length > 0) {
-          filtered = response.items.filter((item) => sources.includes(item.source))
-        }
-
-        setItems((prev) => (reset ? filtered : [...prev, ...filtered]))
-        setHasMore(response.has_next && filtered.length > 0)
+        setItems((prev) => (reset ? response.items : [...prev, ...response.items]))
+        setHasMore(response.has_next)
         setPage(pageNum)
       } catch (error) {
         console.error("Failed to fetch feed:", error)

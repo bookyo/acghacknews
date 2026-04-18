@@ -45,6 +45,19 @@ class HealthResponse(BaseModel):
     last_fetch_status: str | None = None
 
 
+class FeedItemCreate(BaseModel):
+    """Schema for manually creating a feed item."""
+    source: SourceEnum
+    source_url: str
+    original_title: str
+    translated_title: str
+    original_body: str = ""
+    translated_body: str = ""
+    heat_score: float = 0.0
+    source_metadata: dict = {}
+    language: str = "zh-CN"
+
+
 class SourceConfig(BaseModel):
     name: str
     label: str

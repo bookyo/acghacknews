@@ -6,7 +6,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 interface FeedQueryParams {
   page?: number;
   per_page?: number;
-  source?: SourceName;
+  sources?: string;
   sort?: SortOption;
 }
 
@@ -45,7 +45,7 @@ export async function getFeed(params?: FeedQueryParams): Promise<FeedResponse> {
   const query = buildQueryString({
     page: params?.page ?? 1,
     per_page: params?.per_page ?? DEFAULT_PAGE_SIZE,
-    source: params?.source,
+    sources: params?.sources,
     sort: params?.sort,
   });
   return apiRequest<FeedResponse>(`/api/feed${query}`);

@@ -9,6 +9,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.body_limit import BodyLimitMiddleware
+
 from app.config import Settings
 from app.db import init_db
 from app.repository import FeedRepository
@@ -146,9 +150,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=[settings.frontend_url],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Admin-Key"],
     )
+
+    # Admin rate limit: 10 requests per 60 seconds per IP
+    app.add_middleware(
+        RateLimitMiddleware,
+        path_prefixes=["/api/admin"],
+        max_requests=10,
+        window_seconds=60,
+    )
+
+    # Request body size limit: 1 MB
+    app.add_middleware(BodyLimitMiddleware, max_bytes=1_048_576)
+
+    # Security response headers
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Store settings and repo on app.state
     app.state.settings = settings
@@ -166,6 +184,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     feed_router.get_settings = _get_settings
     health_router.get_repo = _get_repo
     health_router.get_settings = _get_settings
+    admin_router.get_repo = _get_repo
     admin_router.get_settings = _get_settings
 
     # Include routers
