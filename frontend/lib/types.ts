@@ -1,10 +1,13 @@
 export type SourceName = "reddit" | "anilist" | "steam" | "anime_news";
 export type SortOption = "hot" | "new";
+export type Language = "zh" | "en";
 
 export interface FeedItem {
   id: string;
   source: SourceName;
   source_url: string;
+  original_title: string;
+  original_body: string;
   translated_title: string;
   translated_body: string;
   heat_score: number;

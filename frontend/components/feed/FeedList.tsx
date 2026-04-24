@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import type { SourceName, SortOption, FeedItem } from "@/lib/types"
+import type { SourceName, SortOption, FeedItem, Language } from "@/lib/types"
 import { getFeed } from "@/lib/api"
 import { FeedCard } from "./FeedCard"
 import { LoadingSkeleton } from "./LoadingSkeleton"
@@ -10,9 +10,10 @@ import { EmptyState } from "./EmptyState"
 interface FeedListProps {
   sources: SourceName[]
   sort: SortOption
+  language: Language
 }
 
-export function FeedList({ sources, sort }: FeedListProps) {
+export function FeedList({ sources, sort, language }: FeedListProps) {
   const [items, setItems] = useState<FeedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -87,7 +88,7 @@ export function FeedList({ sources, sort }: FeedListProps) {
   return (
     <div data-testid="feed-list" className="space-y-4">
       {items.map((item) => (
-        <FeedCard key={item.id} item={item} />
+        <FeedCard key={item.id} item={item} language={language} />
       ))}
       <div ref={sentinelRef} className="h-1" />
       {loading && items.length > 0 && <LoadingSkeleton count={3} />}

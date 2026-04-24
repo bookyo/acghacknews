@@ -1,7 +1,7 @@
 "use client"
 
 import { SOURCE_CONFIG } from "@/lib/constants"
-import type { SourceName, SortOption } from "@/lib/types"
+import type { SourceName, SortOption, Language } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Tooltip,
@@ -17,6 +17,8 @@ interface TopBarProps {
   onSourcesChange: (sources: SourceName[]) => void
   activeSort: SortOption
   onSortChange: (sort: SortOption) => void
+  language: Language
+  onLanguageChange: (lang: Language) => void
 }
 
 export function TopBar({
@@ -24,6 +26,8 @@ export function TopBar({
   onSourcesChange,
   activeSort,
   onSortChange,
+  language,
+  onLanguageChange,
 }: TopBarProps) {
   const toggleSource = (source: SourceName) => {
     if (activeSources.includes(source)) {
@@ -61,7 +65,6 @@ export function TopBar({
                 <span className={`text-sm hidden sm:inline ${config.color}`}>
                   {config.label}
                 </span>
-                {/* On small screens, show shorter label or just icon */}
                 <span className={`text-sm sm:hidden ${config.color}`}>
                   {config.label.slice(0, 2)}
                 </span>
@@ -70,28 +73,63 @@ export function TopBar({
           })}
         </div>
 
-        {/* Right: Sort toggle */}
+        {/* Right: Sort toggle + Language toggle */}
         <TooltipProvider>
-          <div className="flex items-center gap-1 border rounded-lg p-0.5">
-            {SORT_OPTIONS.map((opt) => (
-              <Tooltip key={opt.value}>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border rounded-lg p-0.5">
+              {SORT_OPTIONS.map((opt) => (
+                <Tooltip key={opt.value}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => onSortChange(opt.value)}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        activeSort === opt.value
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Sort by {opt.label.toLowerCase()}est</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-0.5 border rounded-lg p-0.5">
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => onSortChange(opt.value)}
-                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                      activeSort === opt.value
+                    onClick={() => onLanguageChange("zh")}
+                    className={`px-2.5 py-1 text-sm rounded-md transition-colors ${
+                      language === "zh"
                         ? "bg-primary text-primary-foreground font-medium"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {opt.label}
+                    中
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>Sort by {opt.label.toLowerCase()}est</p>
-                </TooltipContent>
+                <TooltipContent><p>中文翻译</p></TooltipContent>
               </Tooltip>
-            ))}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onLanguageChange("en")}
+                    className={`px-2.5 py-1 text-sm rounded-md transition-colors ${
+                      language === "en"
+                        ? "bg-primary text-primary-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    EN
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent><p>Original language</p></TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </TooltipProvider>
       </div>

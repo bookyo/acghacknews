@@ -93,7 +93,7 @@ class TranslationService:
         """Single batch API call."""
         user_content = self._build_batch_prompt(batch)
         response = self.client.chat.completions.create(
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             messages=[
                 {"role": "system", "content": BATCH_SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
@@ -142,7 +142,7 @@ class TranslationService:
                     f"Title: {item['original_title']}\nBody: {item.get('original_body', '')}"
                 )
                 response = self.client.chat.completions.create(
-                    model="deepseek-chat",
+                    model="deepseek-v4-flash",
                     messages=[
                         {"role": "system", "content": SINGLE_PROMPT},
                         {"role": "user", "content": user_content},

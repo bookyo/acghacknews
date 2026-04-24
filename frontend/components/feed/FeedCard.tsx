@@ -1,6 +1,6 @@
 "use client"
 
-import type { FeedItem } from "@/lib/types"
+import type { FeedItem, Language } from "@/lib/types"
 import { SourceBadge } from "./SourceBadge"
 import { HeatScore } from "./HeatScore"
 import { ViewOriginal } from "./ViewOriginal"
@@ -28,11 +28,29 @@ function formatRelativeTime(dateString: string): string {
 
 const TRANSLATION_PENDING_PREFIX = "[TRANSLATION_PENDING]"
 
-export function FeedCard({ item }: { item: FeedItem }) {
-  const isTranslationPending = item.translated_title.startsWith(TRANSLATION_PENDING_PREFIX)
-  const displayTitle = isTranslationPending
-    ? item.translated_title.slice(TRANSLATION_PENDING_PREFIX.length).trim()
-    : item.translated_title
+interface FeedCardProps {
+  item: FeedItem
+  language: Language
+}
+
+export function FeedCard({ item, language }: FeedCardProps) {
+  const isEn = language === "en"
+
+  // Determine title
+  let displayTitle: string
+  if (isEn) {
+    displayTitle = item.original_title
+  } else {
+    const isTranslationPending = item.translated_title.startsWith(TRANSLATION_PENDING_PREFIX)
+    displayTitle = isTranslationPending
+      ? item.translated_title.slice(TRANSLATION_PENDING_PREFIX.length).trim()
+      : item.translated_title
+  }
+
+  // Determine body
+  const displayBody = isEn ? item.original_body : item.translated_body
+
+  const isTranslationPending = !isEn && item.translated_title.startsWith(TRANSLATION_PENDING_PREFIX)
 
   return (
     <div data-testid="feed-card" className="rounded-lg border p-4 space-y-2 hover:bg-accent/50 transition-colors">
@@ -46,7 +64,9 @@ export function FeedCard({ item }: { item: FeedItem }) {
         )}
       </div>
       <h3 className="font-semibold text-base leading-tight">{displayTitle}</h3>
-      <p className="text-sm text-muted-foreground line-clamp-3">{item.translated_body}</p>
+      {displayBody && (
+        <p className="text-sm text-muted-foreground line-clamp-3">{displayBody}</p>
+      )}
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <HeatScore score={item.heat_score} />
         <span className="text-xs">{formatRelativeTime(item.fetched_at)}</span>
