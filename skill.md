@@ -1,3 +1,23 @@
+---
+name: openclaw-acghacknews-reddit-to-hacknews
+description: Read the ACG Hack News API doc, visit the Reddit recommended sections, pick Reddit posts that are worth adding to Hack News, then submit them to the admin API at https://api2.reelbit.cc using an apikey. Use when the task is to curate Reddit ACG posts and add them into Hack News.
+metadata:
+  openclaw:
+    homepage: https://api2.reelbit.cc
+---
+
+# OpenClaw Skill: Reddit -> Hack News
+
+## Language
+
+Match the user's language. If the user writes in Chinese, respond in Chinese. If the user writes in English, respond in English.
+
+## Goal
+
+This skill is for manually curating Reddit ACG-related posts and inserting selected items into Hack News through the admin API.
+
+Source of truth for the API contract:
+
 # ACG Feed API 文档
 
 Base URL: `https://api2.reelbit.cc`
@@ -7,7 +27,7 @@ Base URL: `https://api2.reelbit.cc`
 管理接口需要在请求头中携带 `X-Admin-Key`，值为 `.env` 中配置的 `ADMIN_API_KEY`。
 
 ```
-X-Admin-Key: your-admin-api-key
+X-Admin-Key: qyquyue19
 ```
 
 ---
@@ -235,6 +255,7 @@ curl -X POST https://api2.reelbit.cc/api/admin/items \
 | r/animesuggest | https://www.reddit.com/r/animesuggest/ | ~400K | 动画推荐社区，适合发现冷门佳作 |
 | r/Animemes | https://www.reddit.com/r/Animemes/ | ~3M | 动画梗图社区，高活跃度 |
 | r/TrueAnime | https://www.reddit.com/r/TrueAnime/ | ~200K | 深度动画讨论和分析 |
+| r/Donghua  | https://www.reddit.com/r/Donghua/ | ~100K | 中国动画讨论，新连载推荐 |
 
 #### 漫画 / 轻小说
 
@@ -284,3 +305,197 @@ curl -X POST https://api2.reelbit.cc/api/admin/items \
     }]
   }'
 ```
+
+
+Target API base URL for this skill:
+
+- `https://api2.reelbit.cc`
+
+Authentication header:
+
+- `X-Admin-Key: <apikey>`
+
+## When To Use
+
+Use this skill when the task mentions any of the following:
+
+- 从 Reddit 推荐板块里挑选内容并添加到 Hack News
+- 根据 `docs/API.md` 手动导入 Reddit 帖子
+- 使用 `https://api2.reelbit.cc` 和 `apikey` 添加 ACG 新闻
+- Curate Reddit ACG posts and submit them into Hack News
+
+## Required Inputs
+
+Collect or confirm these inputs before submission:
+
+- `apikey`: used as `X-Admin-Key`
+- one or more target subreddits from the Reddit recommended sections in [docs/API.md](/Users/quyue/www/acghacknews/docs/API.md)
+- one or more Reddit post URLs or raw post data
+
+If the user does not specify subreddits, start from these defaults because they align with the current backend fetcher and the doc's recommendation set:
+
+- `r/anime`
+- `r/manga`
+- `r/Games`
+
+Expand only when the task calls for broader discovery. Good next choices:
+
+- `r/JRPG`
+- `r/gachagaming`
+- `r/lightnovels`
+- `r/visualnovels`
+- `r/animesuggest`
+
+## Selection Rules
+
+Only add posts that are plausibly useful as Hack News items. Prefer:
+
+- new announcements, release dates, trailers, key visual reveals
+- patch notes, launch news, platform release news
+- industry or creator news with clear ACG relevance
+- discussion posts with unusually high engagement and concrete information value
+
+Skip or de-prioritize:
+
+- low-effort memes, shitposts, reaction bait
+- recommendation requests without durable news value
+- duplicate links or reposted discussion of the same event
+- posts with vague titles and no extractable information
+
+Use lightweight filtering heuristics:
+
+- prefer posts with meaningful title information
+- prefer posts with substantial body text or linked context
+- prefer posts with stronger engagement, such as higher upvotes and comment count
+- prefer recent posts over stale threads when multiple posts cover the same topic
+
+## Deduplication Rules
+
+The backend deduplicates by `source_url`. Before submitting, avoid obvious duplicates:
+
+1. If you already have the exact same Reddit permalink in the current batch, keep only one.
+2. If the same news event appears in multiple Reddit threads, keep the clearest and most informative one.
+3. If a thread is only repeating an older announcement, skip it unless it adds materially new facts.
+
+## Submission Schema
+
+Submit to:
+
+- `POST https://api2.reelbit.cc/api/admin/items`
+
+Headers:
+
+```http
+Content-Type: application/json
+X-Admin-Key: <apikey>
+```
+
+Request body shape:
+
+```json
+{
+  "items": [
+    {
+      "source": "reddit",
+      "source_url": "https://www.reddit.com/r/anime/comments/xxx",
+      "original_title": "Original title",
+      "translated_title": "中文标题",
+      "original_body": "Original body text",
+      "translated_body": "中文正文",
+      "heat_score": 80.0,
+      "source_metadata": {
+        "subreddit": "anime",
+        "ups": 1200,
+        "num_comments": 340
+      },
+      "language": "zh-CN"
+    }
+  ]
+}
+```
+
+## Field Mapping
+
+Map Reddit data into the API payload like this:
+
+- `source`: always `"reddit"`
+- `source_url`: canonical Reddit permalink, prefer `https://www.reddit.com/...`
+- `original_title`: Reddit post title
+- `translated_title`: translate the title into Chinese unless the user explicitly wants another target language
+- `original_body`: use the post selftext if present; otherwise use empty string
+- `translated_body`: translate `original_body` into Chinese if there is meaningful content; otherwise use empty string
+- `heat_score`: derive from engagement; use a reasonable numeric score rather than inventing fake precision
+- `source_metadata.subreddit`: subreddit name without `r/`
+- `source_metadata.ups`: Reddit upvote count if known
+- `source_metadata.num_comments`: Reddit comment count if known
+- `source_metadata.permalink`: include when available
+- `source_metadata.author`: include when available
+- `language`: default to `zh-CN`
+
+## Heat Score Guidance
+
+The API accepts a float. Use a simple, consistent heuristic. Do not overfit.
+
+Recommended scoring bands:
+
+- `90-100`: major announcement or extremely high-engagement thread
+- `75-89`: clearly valuable and hot within its subreddit
+- `60-74`: useful but less significant
+- `0-59`: usually not worth submitting unless the user explicitly wants broad coverage
+
+Use engagement and news value together. A meme with high upvotes should still be skipped.
+
+## Workflow
+
+1. Read [docs/API.md](/Users/quyue/www/acghacknews/docs/API.md), especially:
+   - `POST /api/admin/items`
+   - `### Reddit 推荐板块`
+2. Choose target subreddit candidates from the recommended Reddit sections.
+3. Visit or inspect the candidate Reddit posts.
+4. Filter posts using the selection rules above.
+5. For each selected post, prepare one item object with translated Chinese fields.
+6. Submit the batch to `https://api2.reelbit.cc/api/admin/items` with `X-Admin-Key`.
+7. Report the result:
+   - how many candidate posts were reviewed
+   - how many were submitted
+   - how many were inserted according to the API response
+   - which posts were skipped and why, if relevant
+
+## Curl Template
+
+Use this request format when performing the final insertion:
+
+```bash
+curl -X POST https://api2.reelbit.cc/api/admin/items \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: <apikey>" \
+  -d '{
+    "items": [
+      {
+        "source": "reddit",
+        "source_url": "https://www.reddit.com/r/JRPG/comments/xxx",
+        "original_title": "New Dragon Quest XII details announced",
+        "translated_title": "《勇者斗恶龙XII》新情报公开",
+        "original_body": "Square Enix revealed new details...",
+        "translated_body": "Square Enix 公布了新细节...",
+        "heat_score": 90.0,
+        "source_metadata": {
+          "subreddit": "JRPG",
+          "ups": 1200,
+          "num_comments": 340
+        },
+        "language": "zh-CN"
+      }
+    ]
+  }'
+```
+
+## Output Expectations
+
+When using this skill, the agent should provide:
+
+- the shortlist of Reddit posts considered
+- the final items selected for submission
+- the exact submission summary from the API response
+
+If the agent cannot access Reddit content directly, it should ask for the post URLs or raw post data instead of inventing missing fields.
