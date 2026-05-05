@@ -10,6 +10,7 @@ describe('TabBar', () => {
     expect(screen.getByText('Feed')).toBeInTheDocument()
     expect(screen.getByText('Social')).toBeInTheDocument()
     expect(screen.getByText('Search')).toBeInTheDocument()
+    expect(screen.getByText('vbot')).toBeInTheDocument()
 
     // Tab bar container should exist
     expect(screen.getByTestId('tab-bar')).toBeInTheDocument()
@@ -28,5 +29,14 @@ describe('TabBar', () => {
 
     expect(socialButton.disabled).toBe(true)
     expect(searchButton.disabled).toBe(true)
+  })
+
+  it('test_vbot_link', () => {
+    render(<TabBar />)
+
+    const vbotLink = screen.getByRole('link', { name: 'vbot' })
+
+    expect(vbotLink).toHaveAttribute('href', 'https://vbot.reelbit.cc')
+    expect(vbotLink).toHaveAttribute('target', '_blank')
   })
 })
