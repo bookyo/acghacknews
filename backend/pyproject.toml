@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "acgfeed-backend"
 version = "0.1.0"
 description = "ACG Feed API backend"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
